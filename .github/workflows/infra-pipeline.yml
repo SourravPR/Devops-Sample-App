@@ -79,11 +79,18 @@ jobs:
           cd infra
           terraform fmt -check -recursive
 
-      - name: Terraform Validation
+      - name: Terraform Validation (test)
         run: |
           cd infra
-          terraform init -backend=false
-          terraform validate
+          terraform init -backend-config=envs/test/backend.tf
+          terraform validate -no-color
+
+      - name: Terraform Validation (prod)
+        run: |
+          cd infra
+          terraform init -backend-config=envs/prod/backend.tf
+          terraform validate -no-color
+
 
   security_scan:
     name: Security Scan
