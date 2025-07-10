@@ -86,7 +86,7 @@ jobs:
       - name: Terraform Validation
         run: |
           cd infra
-          ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
+          ENV_NAME="${GITHUB_REF##*/}" == "main" && ENV_NAME=production || ENV_NAME=test
           echo "Validating $ENV_NAME environment..."
           ls -R
           if [ ! -f envs/$ENV_NAME/backend.tf ]; then
@@ -121,7 +121,7 @@ jobs:
       - name: Terraform Init
         run: |
           cd infra
-          ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
+          ENV_NAME="${GITHUB_REF##*/}" == "main" && ENV_NAME=production || ENV_NAME=test
           echo "Running terraform init for $ENV_NAME"
           ls -R
           terraform init -reconfigure -backend-config=envs/$ENV_NAME/backend.tf
@@ -129,10 +129,10 @@ jobs:
       - name: Terraform Plan/Apply
         run: |
           cd infra
-          ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
+          ENV_NAME="${GITHUB_REF##*/}" == "main" && ENV_NAME=production || ENV_NAME=test
           echo "Running action: ${{ github.event.inputs.action }} for $ENV_NAME"
-          if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
-            terraform apply -var-file=envs/$ENV_NAME/$ENV_NAME.tfvars ${{ github.event.inputs.auto_approve == 'true' && '-auto-approve' || '' }}
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -var-file=envs/$ENV_NAME/$ENV_NAME.tfvars $( [ "${{ github.event.inputs.auto_approve }}" == "true" ] && echo "-auto-approve" )
           else
             terraform plan -var-file=envs/$ENV_NAME/$ENV_NAME.tfvars -out=tfplan
             terraform show -no-color tfplan > plan-output.txt
@@ -173,7 +173,7 @@ jobs:
       - name: Terraform Destroy
         run: |
           cd infra
-          terraform destroy -var-file=envs/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars ${{ github.event.inputs.auto_approve == 'true' && '-auto-approve' || '' }}
+          terraform destroy -var-file=envs/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars $( [ "${{ github.event.inputs.auto_approve }}" == "true" ] && echo "-auto-approve" )
 
   notify:
     name: Notify
