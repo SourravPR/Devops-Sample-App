@@ -50,7 +50,7 @@ variable "task_memory" {
 variable "desired_count" {
   description = "Desired number of ECS tasks"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 # Container Configuration
