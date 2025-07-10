@@ -1,11 +1,11 @@
 name: Infrastructure Pipeline
 
 on:
-  # push:
-  #   branches: [ main, test ]
-  #   paths:
-  #     - 'infra/**'
-  #     - '.github/workflows/infra-pipeline.yml'
+  push:
+    branches: [ main, test ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-pipeline.yml'
   pull_request:
     branches: [ main, test ]
     paths:
@@ -38,6 +38,7 @@ on:
 env:
   TERRAFORM_VERSION: '1.6.0'
   AWS_REGION: 'us-east-1'
+  SELECTED_ENV: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production') || 'test' }}
 
 jobs:
   detect_changes:
@@ -73,6 +74,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -85,19 +87,11 @@ jobs:
           cd infra
           terraform fmt -check -recursive
 
-      - name: Terraform Validation (test)
+      - name: Terraform Validation (${SELECTED_ENV})
         run: |
           cd infra
-          terraform init -reconfigure -backend-config=envs/test/backend.tf
+          terraform init -reconfigure -backend-config=envs/${{ env.SELECTED_ENV }}/backend.tf
           terraform validate -no-color
-
-      - name: Terraform Validation (prod)
-        run: |
-          cd infra
-          terraform init -reconfigure -backend-config=envs/prod/backend.tf
-          terraform validate -no-color
-
-
 
   security_scan:
     name: Security Scan
@@ -126,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect_changes, validate, security_scan]
     if: needs.detect_changes.outputs.infra_changed == 'true' || github.event_name == 'workflow_dispatch'
-    environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production') || 'test' }}
+    environment: ${{ env.SELECTED_ENV }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -146,15 +140,15 @@ jobs:
       - name: Terraform Init
         run: |
           cd infra
-          terraform init -backend-config=envs/${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'test' }}/backend.tf
+          terraform init -reconfigure -backend-config=envs/${{ env.SELECTED_ENV }}/backend.tf
 
       - name: Terraform Plan/Apply
         run: |
           cd infra
           if [[ "${{ github.event.inputs.action || 'plan' }}" == "apply" ]]; then
-            terraform apply -var-file=envs/${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'test' }}/${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'test' }}.tfvars ${{ github.event.inputs.auto_approve == 'true' && '-auto-approve' || '' }}
+            terraform apply -var-file=envs/${{ env.SELECTED_ENV }}/${{ env.SELECTED_ENV }}.tfvars ${{ github.event.inputs.auto_approve == 'true' && '-auto-approve' || '' }}
           else
-            terraform plan -var-file=envs/${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'test' }}/${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'test' }}.tfvars -out=tfplan
+            terraform plan -var-file=envs/${{ env.SELECTED_ENV }}/${{ env.SELECTED_ENV }}.tfvars -out=tfplan
             terraform show -no-color tfplan > plan-output.txt
 
       - name: Upload Plan
@@ -168,7 +162,7 @@ jobs:
     name: Destroy Infrastructure
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
-    environment: ${{ inputs.environment }}-destroy
+    environment: ${{ env.SELECTED_ENV }}-destroy
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -188,12 +182,12 @@ jobs:
       - name: Terraform Init
         run: |
           cd infra
-          terraform init -backend-config=envs/${{ inputs.environment }}/backend.tf
+          terraform init -reconfigure -backend-config=envs/${{ env.SELECTED_ENV }}/backend.tf
 
       - name: Terraform Destroy
         run: |
           cd infra
-          terraform destroy -var-file=envs/${{ inputs.environment }}/${{ inputs.environment }}.tfvars ${{ inputs.auto_approve && '-auto-approve' || '' }}
+          terraform destroy -var-file=envs/${{ env.SELECTED_ENV }}/${{ env.SELECTED_ENV }}.tfvars ${{ inputs.auto_approve && '-auto-approve' || '' }}
 
   notify:
     name: Notify
