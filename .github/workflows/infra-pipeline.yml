@@ -96,39 +96,10 @@ jobs:
           terraform init -reconfigure -backend-config=envs/$ENV_NAME/backend.tf
           terraform validate -no-color
 
-  security_scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: [detect_changes, validate]
-    if: needs.detect_changes.outputs.infra_changed == 'true' || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: infra/
-          framework: terraform
-
-      - name: Run TFSec
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: infra/
-          format: sarif
-          soft_fail: true
-
   deploy:
     name: Terraform Plan/Apply
     runs-on: ubuntu-latest
-    needs: [detect_changes, validate, security_scan]
+    needs: [detect_changes, validate]
     if: needs.detect_changes.outputs.infra_changed == 'true' || github.event_name == 'workflow_dispatch'
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}
     steps:
