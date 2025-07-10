@@ -88,6 +88,11 @@ jobs:
           cd infra
           ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
           echo "Validating $ENV_NAME environment..."
+          ls -R
+          if [ ! -f envs/$ENV_NAME/backend.tf ]; then
+            echo "❌ backend.tf not found for $ENV_NAME" && exit 1
+          fi
+          cat envs/$ENV_NAME/backend.tf
           terraform init -reconfigure -backend-config=envs/$ENV_NAME/backend.tf
           terraform validate -no-color
 
@@ -146,12 +151,15 @@ jobs:
         run: |
           cd infra
           ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
+          echo "Running terraform init for $ENV_NAME"
+          ls -R
           terraform init -reconfigure -backend-config=envs/$ENV_NAME/backend.tf
 
       - name: Terraform Plan/Apply
         run: |
           cd infra
           ENV_NAME="${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}"
+          echo "Running action: ${{ github.event.inputs.action }} for $ENV_NAME"
           if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
             terraform apply -var-file=envs/$ENV_NAME/$ENV_NAME.tfvars ${{ github.event.inputs.auto_approve == 'true' && '-auto-approve' || '' }}
           else
