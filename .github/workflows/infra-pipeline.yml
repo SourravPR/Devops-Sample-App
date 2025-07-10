@@ -88,14 +88,15 @@ jobs:
       - name: Terraform Validation (test)
         run: |
           cd infra
-          terraform init -backend-config=envs/test/backend.tf
+          terraform init -reconfigure -backend-config=envs/test/backend.tf
           terraform validate -no-color
 
       - name: Terraform Validation (prod)
         run: |
           cd infra
-          terraform init -backend-config=envs/prod/backend.tf
+          terraform init -reconfigure -backend-config=envs/prod/backend.tf
           terraform validate -no-color
+
 
 
   security_scan:
