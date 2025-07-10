@@ -11,12 +11,12 @@ terraform {
 locals {
   # Common tags to be applied to all resources
   common_tags = {
-    Environment   = var.environment
-    Project       = var.project_name
-    Owner         = var.owner
-    CreatedBy     = "terraform"
-    ManagedBy     = "terraform"
-    Application   = var.application_name
+    Environment = var.environment
+    Project     = var.project_name
+    Owner       = var.owner
+    CreatedBy   = "terraform"
+    ManagedBy   = "terraform"
+    Application = var.application_name
   }
 
   # Computed names
@@ -29,60 +29,60 @@ locals {
 # Network Infrastructure
 module "network" {
   source = "./modules/network"
-  
+
   environment     = var.environment
   project_name    = var.project_name
   vpc_cidr        = var.vpc_cidr
   azs             = var.azs
   public_subnets  = var.public_subnets
   private_subnets = var.private_subnets
-  
+
   tags = local.common_tags
 }
 
 # ECS Infrastructure
 module "ecs" {
   source = "./modules/ecs"
-  
-  cluster_name    = local.cluster_name
-  vpc_id          = module.network.vpc_id
-  subnets         = module.network.private_subnets
-  public_subnets  = module.network.public_subnets
-  environment     = var.environment
-  project_name    = var.project_name
-  
+
+  cluster_name   = local.cluster_name
+  vpc_id         = module.network.vpc_id
+  subnets        = module.network.private_subnets
+  public_subnets = module.network.public_subnets
+  environment    = var.environment
+  project_name   = var.project_name
+
   # ECS Task Configuration
-  task_cpu       = var.task_cpu
-  task_memory    = var.task_memory
-  desired_count  = var.desired_count
-  
+  task_cpu      = var.task_cpu
+  task_memory   = var.task_memory
+  desired_count = var.desired_count
+
   # Container Configuration
   container_name  = var.container_name
   container_image = var.container_image
   container_port  = var.container_port
-  
+
   # AWS Configuration
-  aws_region   = var.aws_region
-  account_id   = var.account_id
-  secret_name  = var.secret_name
-  
+  aws_region  = var.aws_region
+  account_id  = var.account_id
+  secret_name = var.secret_name
+
   # SSL Certificate Configuration
   certificate_arn = var.certificate_arn
-  
+
   tags = local.common_tags
 }
 
 # SSM Parameter Store
 module "ssm" {
   source = "./modules/ssm"
-  
-  parameter_name = local.ssm_parameter_name
-  app_secret     = var.app_secret
-  environment    = var.environment
-  project_name   = var.project_name
+
+  parameter_name     = local.ssm_parameter_name
+  app_secret         = var.app_secret
+  environment        = var.environment
+  project_name       = var.project_name
   vpc_id             = module.network.vpc_id
   private_subnet_ids = module.network.private_subnets
   aws_region         = var.aws_region
   ecs_sg_id          = module.ecs.ecs_security_group_id
-  tags = local.common_tags
+  tags               = local.common_tags
 }

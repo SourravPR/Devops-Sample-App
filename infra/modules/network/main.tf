@@ -64,7 +64,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
-  count  = length(var.private_subnets)
+  count = length(var.private_subnets)
 
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-nat-eip-${count.index + 1}"
